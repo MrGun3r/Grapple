@@ -131,7 +131,7 @@ class Player{
         let force = gravity * Math.sin(this.grappleV.angle);
         this.grappleV.Avelocity += (-force+ this.grappleV.velocity) / this.grappleV.length
         this.grappleV.angle += this.grappleV.Avelocity 
-        console.log(this.grappleV.Avelocity,this.grappleV.velocity)
+        
        this.position.x = this.grappleV.length*Math.sin(this.grappleV.angle)+this.grappleV.position.x-this.size/2
        this.position.y = this.grappleV.length*Math.cos(this.grappleV.angle)+this.grappleV.position.y-this.size/2
        this.grappleV.angle *= 0.98

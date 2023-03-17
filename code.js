@@ -96,6 +96,7 @@ class Player{
     }
   }
   grapple(){
+    
     if (keys.mouse2.pressed){
       if(!this.grappleV.active){
         this.grappleV.position = {x:mousepos.x,y:mousepos.y}
@@ -106,8 +107,10 @@ class Player{
       }
     else {
       if(this.grappleV.active){
-        this.velocity.y = -Math.abs(this.grappleV.Avelocity + this.grappleV.velocity)*10
-      }
+        if(this.grappleV.Avelocity*(-gravity * Math.sin(this.grappleV.angle)) >0)
+        this.velocity.y = Math.abs(this.grappleV.Avelocity + this.grappleV.velocity)*10
+      
+      else {this.velocity.y = -Math.abs(this.grappleV.Avelocity + this.grappleV.velocity)*10}}
       this.grappleV.active = false
       this.grappleV.startAngle = false
       this.grappleV.Avelocity = 0
@@ -115,10 +118,11 @@ class Player{
       
     }
     if (this.grappleV.active){
+      
       this.ctx.moveTo(this.position.x+this.size/2,this.position.y+this.size/2)
         this.ctx.lineTo(this.grappleV.position.x,this.grappleV.position.y)
         this.ctx.stroke()
-          if (!this.grappleV.startAngle){
+          if (!this.grappleV.startAngle || !this.onAir){
           this.grappleV.startlength = this.grappleV.length = Math.sqrt((this.position.x+this.size/2-this.grappleV.position.x)**2+(this.position.y+this.size/2-this.grappleV.position.y)**2)
           if (this.position.x+this.size/2>this.grappleV.position.x){
             this.grappleV.angle = Math.acos((this.position.y+this.size/2-this.grappleV.position.y)/this.grappleV.length)
@@ -127,7 +131,8 @@ class Player{
           this.grappleV.angle = -Math.acos((this.position.y+this.size/2-this.grappleV.position.y)/this.grappleV.length)}
           this.grappleV.startAngle = true
         }
-        if (this.onAir){   
+        if (this.onAir){  
+          
         let force = gravity * Math.sin(this.grappleV.angle);
         this.grappleV.Avelocity += (-force+ this.grappleV.velocity) / this.grappleV.length
         this.grappleV.angle += this.grappleV.Avelocity 
@@ -145,9 +150,10 @@ class Player{
   }
   update(){
     this.draw()
+    
     this.shoot()
     this.grapple()
-    if(!this.grappleV.active){
+    if(!this.grappleV.active || !this.onAir){
       this.movement()
       
     if (this.onAir){
@@ -290,21 +296,19 @@ function loop(){
     platform.update()
    })
    players.forEach((player)=>{
-     player.update()
-     for (var i = 0;i<platforms.length;i++){
-      if (!platforms[i].noContact){
-        player.onAir = false
-        break
-      }
-      else {player.onAir = true}
-     }
-   })
-   players.forEach((player)=>{
     platforms.forEach((platform)=>{
       if(RectCollisionCheck(player,platform)){
         RectCollisionCorrection(player,platform)
       }
     })
+   })
+   players.forEach((player)=>{
+     player.update()
+     for (var i = 0;i<platforms.length;i++){
+      if (!platforms[i].noContact){
+        player.onAir = false
+        break
+      }}
    })
    bullets.forEach((bullet,index)=>{
     platforms.forEach((platform)=>{

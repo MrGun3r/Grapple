@@ -109,7 +109,7 @@ class Player{
         else if (this.grapple.angle<-2*Math.PI){
           this.grapple.angle += 2*Math.PI
         }
-      if (this.grapple.angleVelocity<this.grapple.length/100 && this.grapple.angleVelocity>-this.grapple.length/100){
+      if (this.grapple.angleVelocity<20/this.grapple.length && this.grapple.angleVelocity>-20/this.grapple.length){
         this.grapple.angleVelocity += -(gravity)*Math.sin(this.grapple.angle)/this.grapple.length + this.grapple.angleMvt 
         }
       this.grapple.angleVelocity *= Math.cos(Math.sqrt(gravity/this.grapple.length))**2
@@ -125,12 +125,13 @@ class Player{
           this.grapple.angleMvt += 0.04/this.grapple.length
         }
         else {this.grapple.angleMvt *= 0.5}
+        console.log(this.grapple.angleVelocity)
 }
 else {
-  if (keys.a.pressed && this.grapple.angleMvt<0.3/this.grapple.length){
+  if (keys.a.pressed && this.grapple.angleMvt<0.2/this.grapple.length){
     this.grapple.angleMvt += 0.04/this.grapple.length
   } 
-  else if (keys.d.pressed && this.grapple.angleMvt>-0.3/this.grapple.length){
+  else if (keys.d.pressed && this.grapple.angleMvt>-0.2/this.grapple.length){
     this.grapple.angleMvt -= 0.04/this.grapple.length
   }
   else {this.grapple.angleMvt *= 0.5}

@@ -1,367 +1,326 @@
-const canvas = document.getElementById('canvas')
-const ctx = canvas.getContext('2d')
-canvas.height =screen.height
+const canvas = document.getElementById("canvas")
+ctx = canvas.getContext("2d")
 canvas.width = screen.width
+canvas.height = screen.height
+const gravity = 0.3
 const players = []
-const platforms = []
-const bullets = []
-const keys = {w:{pressed:false},s:{pressed:false},a:{pressed:false},d:{pressed:false},mouse1:{pressed:false},mouse2:{pressed:false}}
+const objects = []
+const keys = {a:{pressed:false},d:{pressed:false},w:{pressed:false},s:{pressed:false},mouse1:{pressed:false},mouse2:{pressed:false}}
 const mousepos = {x:0,y:0}
-const gravity = 0.2
+
 class Player{
-  constructor(){
-    this.ctx = ctx
-    this.position = {
-      x:200,
-      y:50
-    }
-    this.velocity = {
-      x:0,
-      y:0
-    }
-    this.acceleration = {
-      x:0,
-      y:gravity
-    }
-    this.terminalvelocity = 10
-    this.onAir = true
-    this.size = 20
-    this.mag = {
-      active : true,
-      count : 20,
-      firerate : 200 //ms
-    }
-    this.grappleV = {
-      position : {
-        x:0,y:0
-      },
-      startlength:0,
-      length : 0,
-      active : false,
-      angle : undefined,
-      angle2 : undefined,
-      startAngle:false,
-      Avelocity:0,
-      velocity:0
-    }
-    
-  }
-  draw(){
-    this.ctx.save()
-    this.ctx.fillStyle = '#00A300'
-    this.ctx.fillRect(this.position.x,this.position.y,this.size,this.size)
-    this.ctx.beginPath()
-    this.ctx.rect(this.position.x,this.position.y,this.size,this.size)
-    this.ctx.lineWidth = 2
-    this.ctx.stroke()
-    this.ctx.closePath()
-
-    this.ctx.fillStyle = '#808080'
-    this.ctx.lineWidth = 1
-    this.ctx.beginPath()
-    this.ctx.translate(this.position.x+this.size/2,this.position.y+this.size/2)
-    this.ctx.rotate(this.angle())
-    this.ctx.translate(-this.position.x-this.size/2,-this.position.y-this.size/2)
-    this.ctx.rect(this.position.x+this.size/4,this.position.y+this.size/4,this.size,this.size/2)
-    this.ctx.fill()
-    this.ctx.stroke()
-    this.ctx.restore()
-  }
-  grapplemouvement(){
-    if (keys.d.pressed && this.grappleV.velocity < 0.1 ){this.grappleV.velocity += 0.05;}
-    else if (keys.a.pressed && this.grappleV.velocity > -0.1){this.grappleV.velocity += -0.05;}
-    else {this.grappleV.velocity *= 0.8;}
-
-    if (keys.w.pressed && this.onAir && this.grappleV.length > 10){
-     ;this.grappleV.length--}
-     else if (keys.s.pressed && this.onAir && this.grappleV.length <= this.grappleV.startlength){
-      ;this.grappleV.length++}
-  }
-  movement(){
-    if (keys.d.pressed){this.velocity.x = 2;}
-    else if (keys.a.pressed){this.velocity.x = -2;}
-    else {this.velocity.x = 0;}
-
-    if (keys.w.pressed && !this.onAir){
-      this.onAir = true;this.velocity.y = -4}
-  }
-  shoot(){
-    if (keys.mouse1.pressed && this.mag.active){
-      bullets.push(new Bullet({x:this.position.x+this.size/2,y:this.position.y+this.size/2},{x:Math.cos(this.angle()),y:Math.sin(this.angle())}))
-      this.mag.active = false
-      this.mag.count--
-      setTimeout(()=>{
-         this.mag.active = true
-      },this.mag.firerate)
-    }
-  }
-  grapple(){
-    
-    if (keys.mouse2.pressed){
-      if(!this.grappleV.active){
-        this.grappleV.position = {x:mousepos.x,y:mousepos.y}
-        this.ctx.moveTo(this.position.x+this.size/2,this.position.y+this.size/2)
-        this.ctx.lineTo(this.grappleV.position.x,this.grappleV.position.y)
-        this.ctx.stroke()
-        this.grappleV.active = true}
+    constructor(ctx){
+      this.ctx = ctx
+      this.position = {
+        x:250,
+        y:250
       }
-    else {
-      if(this.grappleV.active){
-        if(this.grappleV.Avelocity*(-gravity * Math.sin(this.grappleV.angle)) >0)
-        this.velocity.y = Math.abs(this.grappleV.Avelocity + this.grappleV.velocity)*10
+      this.velocity = {
+        x:0,
+        y:0
+      }
+      this.grapple = {
+        active:undefined,
+        position:undefined,
+        length:undefined,
+        angleVelocity:undefined,
+        angleMvt:undefined,
+        angle:undefined,
+        restlength:undefined,
+        lengthVelocity:undefined,
+        lengthMvt:undefined,
+        lengthMax:200
+      }
       
-      else {this.velocity.y = -Math.abs(this.grappleV.Avelocity + this.grappleV.velocity)*10}}
-      this.grappleV.active = false
-      this.grappleV.startAngle = false
-      this.grappleV.Avelocity = 0
-      this.grappleV.velocity = 0
-      
+      this.accelerationY = gravity
+      this.size = 20
+      this.mvtSpeed = 1
+      this.speedLimit =10
+      this.canJump = false
     }
-    if (this.grappleV.active){
-      
-      this.ctx.moveTo(this.position.x+this.size/2,this.position.y+this.size/2)
-        this.ctx.lineTo(this.grappleV.position.x,this.grappleV.position.y)
+    draw(){
+        this.ctx.save()
+        this.ctx.beginPath()
+        this.ctx.roundRect(this.position.x,this.position.y,this.size,this.size,14)
         this.ctx.stroke()
-          if (!this.grappleV.startAngle || !this.onAir){
-          this.grappleV.startlength = this.grappleV.length = Math.sqrt((this.position.x+this.size/2-this.grappleV.position.x)**2+(this.position.y+this.size/2-this.grappleV.position.y)**2)
-          if (this.position.x+this.size/2>this.grappleV.position.x){
-            this.grappleV.angle = Math.acos((this.position.y+this.size/2-this.grappleV.position.y)/this.grappleV.length)
-          }
-          else{
-          this.grappleV.angle = -Math.acos((this.position.y+this.size/2-this.grappleV.position.y)/this.grappleV.length)}
-          this.grappleV.startAngle = true
+        this.ctx.restore()
+    }
+    movement(){
+        if (keys.a.pressed && this.velocity.x > -4){
+            this.velocity.x -= this.mvtSpeed
         }
-        if (this.onAir){  
-          
-        let force = gravity * Math.sin(this.grappleV.angle);
-        this.grappleV.Avelocity += (-force+ this.grappleV.velocity) / this.grappleV.length
-        this.grappleV.angle += this.grappleV.Avelocity 
+        else if(keys.d.pressed && this.velocity.x < 4){
+            this.velocity.x += this.mvtSpeed
+        }
+        else {
+          if (!this.canJump){this.velocity.x *= 0.98}
+        else {this.velocity.x *= 0.9}}
+        if (keys.w.pressed && this.canJump){
+            this.velocity.y = -5
+        }
+        if (this.velocity.y<this.speedLimit){
+            this.velocity.y += this.accelerationY}
+        this.position.x += this.velocity.x
+        this.position.y += this.velocity.y
         
-       this.position.x = this.grappleV.length*Math.sin(this.grappleV.angle)+this.grappleV.position.x-this.size/2
-       this.position.y = this.grappleV.length*Math.cos(this.grappleV.angle)+this.grappleV.position.y-this.size/2
-       this.grappleV.angle *= 0.98
-      }   
-      }
-    
-   
-  }
-  angle(){
-    return Math.atan2(mousepos.y-this.position.y,mousepos.x-this.position.x)
-  }
-  update(){
-    this.draw()
-    
-    this.shoot()
-    this.grapple()
-    if(!this.grappleV.active || !this.onAir){
-      this.movement()
+    }
+    grappleMvt(){
+     if (keys.mouse1.pressed){
+        if (!this.grapple.active){
+         this.grapple.position = {
+            x:mousepos.x,
+            y:mousepos.y
+         }
+         this.grapple.restlength = this.grapple.length = Math.sqrt((this.position.x+this.size/2-this.grapple.position.x)**2+(this.position.y+this.size/2-this.grapple.position.y)**2)
+         this.grapple.length = this.grapple.restlength
+         if(this.grapple.length > this.grapple.lengthMax){
+          this.ctx.beginPath()
+          this.ctx.arc(this.position.x+this.size/2,this.position.y+this.size/2,this.grapple.lengthMax,0,2*Math.PI)
+          this.ctx.stroke()
+          return 0;
+         }
+         if (this.position.x+this.size/2>this.grapple.position.x){
+          this.grapple.angle = Math.acos((this.position.y+this.size/2-this.grapple.position.y)/this.grapple.length)}
+          else{this.grapple.angle = -Math.acos((this.position.y+this.size/2-this.grapple.position.y)/this.grapple.length)}
+          this.grapple.angleVelocity = (this.velocity.x*Math.cos(this.grapple.angle)-this.velocity.y*Math.sin(this.grapple.angle))/this.grapple.length
+          this.grapple.lengthVelocity = this.velocity.y*Math.cos(this.grapple.angle)+this.velocity.x*Math.sin(this.grapple.angle)
+          this.grapple.lengthMvt = 0
+          this.grapple.angleMvt = 0
+          
+         this.grapple.active = true
+        }
+        if (this.grapple.length == 0){
+          this.grapple.length++
+        }
+        if(this.grapple.angle == 0){
+          this.grapple.angle += 0.1
+        }
+        
+        this.grapple.lengthVelocity += 0.01*(this.grapple.restlength-this.grapple.length) - this.grapple.lengthVelocity*(10/this.grapple.length) + this.grapple.lengthMvt
+        
+        this.grapple.length += this.grapple.lengthVelocity
+        
+        
       
-    if (this.onAir){
-      this.acceleration.y = gravity
-      if ( this.velocity.y < this.terminalvelocity){
-    this.velocity.y += this.acceleration.y}}
-    else{
-      this.acceleration.y = 0
-      this.velocity.y = 0
+
+        if (this.grapple.angle>2*Math.PI){
+          this.grapple.angle -= 2*Math.PI
+        }
+        else if (this.grapple.angle<-2*Math.PI){
+          this.grapple.angle += 2*Math.PI
+        }
+      if (this.grapple.angleVelocity<this.grapple.length/100 && this.grapple.angleVelocity>-this.grapple.length/100){
+        this.grapple.angleVelocity += -(gravity)*Math.sin(this.grapple.angle)/this.grapple.length + this.grapple.angleMvt 
+        }
+      this.grapple.angleVelocity *= Math.cos(Math.sqrt(gravity/this.grapple.length))**2
+        
+        this.grapple.angle += this.grapple.angleVelocity 
+        this.grapple.angle *= Math.cos(Math.sqrt(gravity/this.grapple.length))**2
+        
+        if(Math.cos(this.grapple.angle)>0){
+        if (keys.a.pressed && this.grapple.angleMvt>-0.3/this.grapple.length){
+          this.grapple.angleMvt -= 0.04/this.grapple.length
+        } 
+        else if (keys.d.pressed && this.grapple.angleMvt<0.3/this.grapple.length){
+          this.grapple.angleMvt += 0.04/this.grapple.length
+        }
+        else {this.grapple.angleMvt *= 0.5}
+}
+else {
+  if (keys.a.pressed && this.grapple.angleMvt<0.3/this.grapple.length){
+    this.grapple.angleMvt += 0.04/this.grapple.length
+  } 
+  else if (keys.d.pressed && this.grapple.angleMvt>-0.3/this.grapple.length){
+    this.grapple.angleMvt -= 0.04/this.grapple.length
+  }
+  else {this.grapple.angleMvt *= 0.5}
+}
+        if (keys.w.pressed){
+          this.grapple.lengthMvt = -this.grapple.length/1000
+        }
+        else if (keys.s.pressed ){
+          this.grapple.lengthMvt = this.grapple.length/1000
+        }
+        else {this.grapple.lengthMvt *= 0}
+        
+        this.position.x = this.grapple.length*Math.sin(this.grapple.angle)+this.grapple.position.x-this.size/2
+        this.position.y = this.grapple.length*Math.cos(this.grapple.angle)+this.grapple.position.y-this.size/2
+        
+
+        // draw line
+         this.ctx.beginPath()
+         this.ctx.moveTo(this.position.x+this.size/2,this.position.y+this.size/2)
+         this.ctx.lineTo(this.grapple.position.x,this.grapple.position.y)
+         this.ctx.stroke()
+         
      }
-    this.position.x += this.velocity.x
-    this.position.y += this.velocity.y
-  }
-  else {this.velocity.y = 0;
-    this.grapplemouvement()}
-  }
-}
-class Platform{
-  constructor(position,size){
-    this.ctx = ctx
-    this.position = position
-    this.size = size
-    this.noContact = false
-  }
-  draw(){
-    this.ctx.save()
-    this.ctx.fillStyle = 'white'
-    this.ctx.fillRect(this.position.x,this.position.y,this.size.x,this.size.y)
-    this.ctx.lineWidth = 2
-    this.ctx.beginPath()
-    this.ctx.rect(this.position.x,this.position.y,this.size.x,this.size.y)
-    this.ctx.stroke()
-    this.ctx.restore()
-  }
-  update(){
-    this.draw()
-  }
-}
-class Bullet{
-  constructor(position,direction){
-    this.ctx = ctx
-    this.position = position
-    this.startPosition = {x:position.x,y:position.y}
-    this.direction = direction
-    this.size = 2
-    this.speed = 7
-    this.travelDistance = {
-      x:0,y:0
+        else {
+          if(this.grapple.active){
+            this.velocity.x = this.grapple.angleVelocity*Math.cos(this.grapple.angle)*this.grapple.length+this.grapple.lengthVelocity*Math.sin(this.grapple.angle)
+            if(Math.sin(this.grapple.angle)*this.grapple.angleVelocity<0){
+            this.velocity.y = Math.abs(this.grapple.angleVelocity*Math.sin(this.grapple.angle)*this.grapple.length+this.grapple.lengthVelocity)+this.grapple.lengthVelocity*Math.cos(this.grapple.angle)
+          }
+            else {this.velocity.y = -Math.abs(this.grapple.angleVelocity*Math.sin(this.grapple.angle)*this.grapple.length)+this.grapple.lengthVelocity*Math.cos(this.grapple.angle)}    
+            this.grapple.active = false;
+          }
+        }
     }
-    this.travelLimit = 1000
-    this.index;
-  }
-  draw(){
-    this.ctx.save()
-    this.ctx.beginPath()
-    this.ctx.arc(this.position.x,this.position.y,this.size,0,Math.PI*2)
-    this.ctx.fill()
-    this.ctx.closePath()
-    this.ctx.restore()
-  }
-  bounds(){
-    this.travelDistance.x += Math.abs(this.direction.x * this.speed)
-    this.travelDistance.y += Math.abs(this.direction.y * this.speed)
-    if (this.travelDistance.x > this.travelLimit || this.travelDistance.y > this.travelLimit){
-      bullets.splice(this.index,1)
-      
+    update(){
+        this.draw()
+    if (!this.grapple.active){
+        this.movement()
     }
-  }
-  update(index){
-    this.index = index
-    this.draw()
-    this.position.x += this.direction.x * this.speed
-    this.position.y += this.direction.y * this.speed
-    this.bounds()
-  }
+        this.grappleMvt() 
+    }
 }
-players.push(new Player())
-platforms.push(new Platform({x:100,y:500},{x:1000,y:100}))
-platforms.push(new Platform({x:200,y:450},{x:100,y:30}))
-platforms.push(new Platform({x:180,y:480},{x:20,y:30}))
-platforms.push(new Platform({x:280,y:220},{x:20,y:20}))
-function RectCollisionCheck(player,obstacle){ 
-  if(player.position.x+player.size > obstacle.position.x &&(obstacle.position.x+obstacle.size.x) > player.position.x &&   player.position.y+player.size > obstacle.position.y&&obstacle.position.y+obstacle.size.y > player.position.y){
+
+class Object{
+    constructor(ctx,position,size){
+       this.ctx = ctx
+       this.position = position
+       this.size = size
+       this.contact = false
+    }
+
+    draw(){
+        this.ctx.save()
+        this.ctx.lineWidth = 2
+        this.ctx.beginPath()
+        this.ctx.rect(this.position.x,this.position.y,this.size.width,this.size.height)
+        this.ctx.stroke()
+        this.ctx.restore()
+    }
+    update(){
+        this.draw()
+    }
+    }
+players.push(new Player(ctx))
+objects.push(new Object(ctx,{x:100,y:600},{width:500,height:100}))
+objects.push(new Object(ctx,{x:700,y:50},{width:100,height:800}))
+objects.push(new Object(ctx,{x:250,y:570},{width:20,height:50}))
+objects.push(new Object(ctx,{x:250,y:520},{width:50,height:30}))
+
+function Collision(player,object){
+if(player.position.x+player.size > object.position.x &&(object.position.x+object.size.width) > player.position.x && player.position.y+player.size > object.position.y&&object.position.y+object.size.height > player.position.y){
     return true
   }
   else {
-    obstacle.noContact = true
     return false 
-  }
-}
-function toBorder(player){
-  var dx, dy, py, vx, vy;
-  vx = mousepos.x - player.position.x-player.size/2;
-  vy = mousepos.y - player.position.y-player.size/2;
-  dx = vx < 0 ? 0 : canvas.width;
-  dy = py = vy < 0 ? 0 : canvas.height;
-  if (vx === 0) {
-    dx = player.position.x+player.size/2;
-  } else if (vy === 0) {
-    dy = player.position.y+player.size/2;
-  } else {
-    var dy = player.position.y+player.size/2 + (vy / vx) * (dx - player.position.x-player.size/2);
-    if (dy < 0 || dy > canvas.height) {
-      dx = player.position.x+player.size/2 + (vx / vy) * (py - player.position.y-player.size/2);
-      dy = py;
-    }
-  }
-  return {x:dx,y:dy}
-}
-function LineCollision(x1,y1,x2,y2,x3,y3,x4,y4){
-  uA = ((x4-x3)*(y1-y3) - (y4-y3)*(x1-x3)) / ((y4-y3)*(x2-x1) - (x4-x3)*(y2-y1)); 
-  uB = ((x2-x1)*(y1-y3) - (y2-y1)*(x1-x3)) / ((y4-y3)*(x2-x1) - (x4-x3)*(y2-y1));
-  if (uA >= 0 && uA <= 1 && uB >= 0 && uB <= 1){
-    return true
-  }
-  
-  else return 0;}
-function RectCollisionCorrection(player,obstacle){
-  if (Math.min(Math.abs(player.position.x+player.size-obstacle.position.x),Math.abs(player.position.x-obstacle.position.x-obstacle.size.x))
-      <Math.min(Math.abs(player.position.y+player.size-obstacle.position.y),Math.abs(player.position.y-obstacle.position.y-obstacle.size.y) 
+  }}
+
+function CollisionCorrection(player,object){
+    if (Math.min(Math.abs(player.position.x+player.size-object.position.x),Math.abs(player.position.x-object.position.x-object.size.width))
+      <Math.min(Math.abs(player.position.y+player.size-object.position.y),Math.abs(player.position.y-object.position.y-object.size.height) 
     )){
-      if (Math.abs(player.position.x + player.size - obstacle.position.x)>Math.abs(player.position.x - obstacle.position.x - obstacle.size.x)){
-      player.position.x = obstacle.position.x + obstacle.size.x;obstacle.noContact = true
+      if (Math.abs(player.position.x + player.size - object.position.x)>Math.abs(player.position.x - object.position.x - object.size.width)){
+      player.position.x = object.position.x + object.size.width;
+      if (player.grapple.active){
+        player.grapple.angleVelocity /= -3
+        if(player.grapple.position.x > player.position.x){
+        player.grapple.angle = -Math.acos((player.position.y+player.size/2-player.grapple.position.y)/(Math.sqrt((player.position.y+player.size/2-player.grapple.position.y)**2+(player.position.x+player.size/2-player.grapple.position.x)**2)))
+        }
+        else {player.grapple.angle = Math.acos((player.position.y+player.size/2-player.grapple.position.y)/(Math.sqrt((player.position.y+player.size/2-player.grapple.position.y)**2+(player.position.x+player.size/2-player.grapple.position.x)**2)))}
+      }
      }
-     else {player.position.x = obstacle.position.x - player.size;obstacle.noContact = true}
+     else {player.position.x = object.position.x - player.size;
+      if (player.grapple.active){
+        player.grapple.angleVelocity /= -3
+        if(player.grapple.position.x > player.position.x){
+          player.grapple.angle = -Math.acos((player.position.y+player.size/2-player.grapple.position.y)/(Math.sqrt((player.position.y+player.size/2-player.grapple.position.y)**2+(player.position.x+player.size/2-player.grapple.position.x)**2)))
+          }
+          else {player.grapple.angle = Math.acos((player.position.y+player.size/2-player.grapple.position.y)/(Math.sqrt((player.position.y+player.size/2-player.grapple.position.y)**2+(player.position.x+player.size/2-player.grapple.position.x)**2)))}
+        
+      }}
     }
     else {
-      if (Math.abs(player.position.y + player.size - obstacle.position.y)>Math.abs(player.position.y - obstacle.position.y - obstacle.size.y)){
-        player.position.y = obstacle.position.y + obstacle.size.y;player.velocity.y = 0
-       }
-      else if (Math.abs(player.position.y + player.size - obstacle.position.y)<Math.abs(player.position.y - obstacle.position.y - obstacle.size.y)){player.position.y = obstacle.position.y - player.size;obstacle.noContact = false;}
-      else{obstacle.noContact = true;}}
-}
-function loop(){
-  ctx.save()
-   ctx.fillStyle = '#ADD8E6'
-   ctx.fillRect(0,0,canvas.width,canvas.height)
-  ctx.restore()
-   platforms.forEach((platform)=>{
-    platform.update()
-   })
-   players.forEach((player)=>{
-    platforms.forEach((platform)=>{
-      if(RectCollisionCheck(player,platform)){
-        RectCollisionCorrection(player,platform)
-      }
-    })
-   })
-   players.forEach((player)=>{
-     player.update()
-     for (var i = 0;i<platforms.length;i++){
-      if (!platforms[i].noContact){
-        player.onAir = false
-        break
-      }}
-   })
-   bullets.forEach((bullet,index)=>{
-    platforms.forEach((platform)=>{
-      
-        x2 = bullet.startPosition.x
-        y2 = bullet.startPosition.y
-        x1 = bullet.position.x
-        y1 = bullet.position.y
-        x3 = platform.position.x
-        y3 = platform.position.y
-        if (LineCollision(x1,y1,x2,y2,x3,y3,x3+platform.size.x,y3) || LineCollision(x1,y1,x2,y2,x3,y3+platform.size.y,x3+platform.size.x,y3+platform.size.y) || LineCollision(x1,y1,x2,y2,x3,y3,x3,y3+platform.size.y) || LineCollision(x1,y1,x2,y2,x3+platform.size.x,y3,x3+platform.size.x,y3+platform.size.y)){
-          bullets.splice(index,1)
-
+      if (Math.abs(player.position.y + player.size - object.position.y)>Math.abs(player.position.y - object.position.y - object.size.height)){
+        player.position.y = object.position.y + object.size.height;
+        player.velocity.y *= 0.98
+        if (player.grapple.active){
+          player.grapple.angleVelocity /= -3
+          if(player.grapple.position.x > player.position.x){
+          player.grapple.angle = -Math.acos((player.position.y+player.size/2-player.grapple.position.y)/(Math.sqrt((player.position.y+player.size/2-player.grapple.position.y)**2+(player.position.x+player.size/2-player.grapple.position.x)**2)))
+          }
+          else {player.grapple.angle = Math.acos((player.position.y+player.size/2-player.grapple.position.y)/(Math.sqrt((player.position.y+player.size/2-player.grapple.position.y)**2+(player.position.x+player.size/2-player.grapple.position.x)**2)))}
         }
-    })
-   })
-   bullets.forEach((bullet,index)=>{
-    bullet.update(index)
-   })
-  requestAnimationFrame(loop)
+        
+       }
+      else if (Math.abs(player.position.y + player.size - object.position.y)<Math.abs(player.position.y - object.position.y - object.size.height)){player.position.y = object.position.y - player.size;
+        player.velocity.y = 0;
+        if (player.grapple.active){
+        player.grapple.angleVelocity /= -3
+        if(player.grapple.position.x > player.position.x){
+        player.grapple.angle = -Math.acos((player.position.y+player.size/2-player.grapple.position.y)/(Math.sqrt((player.position.y+player.size/2-player.grapple.position.y)**2+(player.position.x+player.size/2-player.grapple.position.x)**2)))
+        }
+        else {player.grapple.angle = Math.acos((player.position.y+player.size/2-player.grapple.position.y)/(Math.sqrt((player.position.y+player.size/2-player.grapple.position.y)**2+(player.position.x+player.size/2-player.grapple.position.x)**2)))}
+      }
+        object.contact = true
+        }
+       }
+       
+        
 }
-loop()
+function GameLoop(){
+    ctx.clearRect(0,0,canvas.width,canvas.height)
+    
+    players.forEach((player)=>{
+        player.update()
+        objects.forEach((object)=>{
+            
+            if(Collision(player,object)){
+                CollisionCorrection(player,object)
+            }
+            else {object.contact = false}
+            for(var i = 0 ;i < objects.length;i++){
+                if (objects[i].contact){
+                 player.canJump = true
+                 break
+                }
+                else {player.canJump = false;}
+                
+            }
+            
+        })
+    })
+    objects.forEach((object)=>{
+        object.update()
+    })
+      
+    requestAnimationFrame(GameLoop)
+}
+GameLoop()
 
-// KEYBOARD INPUTS
+
+
+// KEYBOARD & MOUSE KEYS //
 addEventListener('keydown',({keyCode})=>{
-     if (keyCode == 68){keys.d.pressed = true;}
-     if (keyCode == 65){keys.a.pressed = true}
-     if (keyCode == 87){keys.w.pressed = true}
-     if (keyCode == 83){keys.s.pressed = true}
+    if (keyCode == 68){keys.d.pressed = true;}
+    if (keyCode == 65){keys.a.pressed = true}
+    if (keyCode == 87){keys.w.pressed = true}
+    if (keyCode == 83){keys.s.pressed = true}
 })
 addEventListener('keyup',({keyCode})=>{
-  if (keyCode == 68){keys.d.pressed = false}
-  if (keyCode == 65){keys.a.pressed = false}
-  if (keyCode == 87){keys.w.pressed = false}
-  if (keyCode == 83){keys.s.pressed = false}
+ if (keyCode == 68){keys.d.pressed = false}
+ if (keyCode == 65){keys.a.pressed = false}
+ if (keyCode == 87){keys.w.pressed = false}
+ if (keyCode == 83){keys.s.pressed = false}
 })
 addEventListener('mousedown',(event)=>{
-  if (event.button == 0){
-  keys.mouse1.pressed = true}
-  if (event.button == 2){
-    keys.mouse2.pressed = true
-  }
+ if (event.button == 0){
+ keys.mouse1.pressed = true}
+ if (event.button == 2){
+   keys.mouse2.pressed = true
+ }
 })
 addEventListener('mouseup',(event)=>{
-  if (event.button == 0){
-  keys.mouse1.pressed = false}
-  if (event.button == 2){
-    keys.mouse2.pressed = false
-  }
+ if (event.button == 0){
+ keys.mouse1.pressed = false}
+ if (event.button == 2){
+   keys.mouse2.pressed = false
+ }
 })
 addEventListener('mousemove',(event)=>{
-  rect = canvas.getBoundingClientRect()
+    rect = canvas.getBoundingClientRect()
   mousepos.y = event.y*canvas.height/rect.bottom
   mousepos.x = event.x*canvas.width/rect.right
 })
-document.addEventListener('contextmenu', event => event.preventDefault());

@@ -3,12 +3,7 @@
     background-color: bisque;
 }
 
-html,body {
-    -webkit-user-select: none;      
-    -moz-user-select: none;
-    -ms-user-select: none; 
-    user-select: none; 
-}
+
 #canvas {
     height: 100vh;
     width: 100vw;
